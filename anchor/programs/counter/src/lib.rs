@@ -4,67 +4,129 @@ use anchor_lang::prelude::*;
 
 declare_id!("FqzkXZdwYjurnUKetJCAvaUw5WAqbwzU6gZEwydeEfqS");
 
+
 #[program]
-pub mod counter {
+pub mod crud {
     use super::*;
 
-    pub fn close(_ctx: Context<CloseCounter>) -> Result<()> {
-        Ok(())
+    pub fn initalize_journal(ctx:Context<CreateEntry>,title:String,content:String)->Result<()>{
+        
+
+
+        let journal_entry = & mut ctx.accounts.journal_entry;
+         journal_entry.title=title;
+         journal_entry.content = content;
+
+         return Ok(());
+
     }
 
-    pub fn decrement(ctx: Context<Update>) -> Result<()> {
-        ctx.accounts.counter.count = ctx.accounts.counter.count.checked_sub(1).unwrap();
-        Ok(())
-    }
 
-    pub fn increment(ctx: Context<Update>) -> Result<()> {
-        ctx.accounts.counter.count = ctx.accounts.counter.count.checked_add(1).unwrap();
-        Ok(())
-    }
+}
 
-    pub fn initialize(_ctx: Context<InitializeCounter>) -> Result<()> {
-        Ok(())
-    }
 
-    pub fn set(ctx: Context<Update>, value: u8) -> Result<()> {
-        ctx.accounts.counter.count = value.clone();
-        Ok(())
-    }
+
+
+
+
+
+
+pub fn update_journal_entry(ctx:Context<UpdateJournalEntry>,_title:String,content:String)->Result<()>{
+ 
+ let journal_entry = & mut ctx.accounts.journal_entry; 
+
+ journal_entry.content=content;
+ Ok(())
+
+ 
+  
+
+}
+
+pub fn delete_journal_entry(_ctx:Context<DeleteJournalEntry>,_title:String)->Result<()>{
+
+    Ok(())
+
 }
 
 #[derive(Accounts)]
-pub struct InitializeCounter<'info> {
+#[instruction(title:String)]
+pub struct DeleteJournalEntry <'info>{
     #[account(mut)]
-    pub payer: Signer<'info>,
+    pub owner:Signer<'info>,
+    #[account(
+        mut,
+        seeds=[title.as_bytes(),owner.key().as_ref()],
+        bump,
+        close = owner
+    
+    )]
+    pub journal_entry:Account<'info,JournalEntryState>,
+    pub system_program:Program<'info,System>
+
+}
+
+#[derive(Accounts)]
+#[instruction(title:String)]
+pub struct UpdateJournalEntry<'info>{
+    // first we need to get the account to be update then we 
+    // use this account through the context to update the account
+    #[account(mut)]
+     pub owner:Signer<'info>,
 
     #[account(
-  init,
-  space = 8 + Counter::INIT_SPACE,
-  payer = payer
+        mut,
+        seeds=[title.as_bytes(),owner.key().as_ref()],
+        bump,
+        realloc=8+JournalEntryState::INIT_SPACE,
+        realloc::zero=true,
+        realloc::payer=owner,
     )]
-    pub counter: Account<'info, Counter>,
-    pub system_program: Program<'info, System>,
-}
-#[derive(Accounts)]
-pub struct CloseCounter<'info> {
-    #[account(mut)]
-    pub payer: Signer<'info>,
-
-    #[account(
-  mut,
-  close = payer, // close account and return lamports to payer
-    )]
-    pub counter: Account<'info, Counter>,
+    pub journal_entry:Account<'info,JournalEntryState>,
+    pub system_program:Program<'info,System>
 }
 
-#[derive(Accounts)]
-pub struct Update<'info> {
-    #[account(mut)]
-    pub counter: Account<'info, Counter>,
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 #[account]
 #[derive(InitSpace)]
-pub struct Counter {
-    count: u8,
+pub struct JournalEntryState{
+    pub owner:Pubkey,
+    #[max_len(20)]
+    pub title:String,
+    #[max_len(260)]
+    pub content:String,
+}
+
+
+#[derive(Accounts)]
+#[instruction(title:String)]
+
+pub struct CreateEntry<'info> {
+
+    #[account(mut)]
+    pub owner:Signer< 'info>,
+    #[account(
+        init,
+        payer = owner,
+        space=8+JournalEntryState::INIT_SPACE,
+        seeds=[title.as_bytes(),owner.key().as_ref()],
+        bump
+    )]
+    pub journal_entry:Account<'info,JournalEntryState>,
+    pub system_program :Program<'info,System>
+    
+
 }
